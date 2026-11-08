@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161d">
+<title>Fox Stream</title>
+<style>
+/* Layout: App mit fester Kopfzeile (Suche), Inhalt in Tabs, Navigation unten am Daumen */
+:root{
+  --bg:#f2f3f6; --surface:#ffffff; --ink:#151a22; --muted:#5d6675; --line:#dde1e7;
+  --accent:#e5392d; --accent-ink:#ffffff; --fox:#f57c1f; --ok:#1f7a4d; --chip:#e7eaef;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
+  --nav:62px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#12161d; --surface:#1b2230; --ink:#eaeef3; --muted:#9aa4b4; --line:#2b3442;
+    --accent:#ff5a4e; --accent-ink:#1a0806; --ok:#4cc38a; --chip:#252e3d; color-scheme:dark;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;display:flex;flex-direction:column}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Kopf */
+.top{padding:calc(12px + env(safe-area-inset-top)) 16px 10px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand h1 b{color:var(--fox)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+.iconbtn{background:none;border:0;padding:8px;border-radius:8px;color:var(--muted);display:inline-flex}
+.iconbtn svg{width:22px;height:22px}
+.searchrow{display:flex;gap:8px}
+.searchrow input{flex:1;min-width:0;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* Inhalt */
+main{flex:1;overflow-y:auto;padding:16px 16px calc(var(--nav) + 24px + env(safe-area-inset-bottom))}
+.view{display:none;flex-direction:column;gap:16px}
+.view.on{display:flex}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+h2{margin:0 0 10px;font-size:17px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{font-size:12px;color:var(--muted);font-weight:400}
+h3{margin:14px 0 6px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h3:first-child{margin-top:0}
+.hint{font-size:12px;color:var(--muted);margin:0}
+
+/* Live-Kacheln */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:76px}
+.tile b{font-size:15px}
+.tile span{font-size:12px;color:var(--muted)}
+.tile .live{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.08em}
+
+/* Programm-Eintrag */
+.slot{display:grid;grid-template-columns:50px 1fr auto;gap:10px;padding:12px 0;border-top:1px solid var(--line);align-items:start}
+.slot:first-of-type{border-top:0}
+.time{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;padding-top:2px}
+.time i{display:block;font-style:normal;font-size:10px;color:var(--accent);font-weight:700}
+.st{background:none;border:0;padding:0;text-align:left;font-weight:700;font-size:15px}
+.meta{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:12px;color:var(--muted);margin:2px 0}
+.meta .g{color:var(--ink);font-weight:600}
+.desc{font-size:13px;color:var(--muted);margin:0}
+.slot.done .st,.slot.done .desc{text-decoration:line-through;opacity:.5}
+.tick{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:none;display:inline-flex;align-items:center;justify-content:center;color:transparent}
+.tick svg{width:16px;height:16px}
+.done .tick,.tick.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid var(--ink);padding-top:8px;margin-top:6px;font-weight:800}
+.dayhead.today{border-color:var(--accent)}
+.dayhead small{font-family:var(--mono);font-weight:500;color:var(--muted);font-size:12px}
+.badge{font-family:var(--mono);font-size:10px;background:var(--accent);color:var(--accent-ink);padding:2px 6px;border-radius:4px;margin-left:6px}
+.progress{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--chip);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+
+/* Senderliste */
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:11px 0;text-align:left}
+.row:first-of-type{border-top:0}
+.row b{display:block}
+.row span.s{font-size:12px;color:var(--muted)}
+.tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:130px}
+.tag{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.tag.g{color:var(--ok)}
+
+/* Merkliste */
+.add{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.add .full{grid-column:1/-1}
+.add label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.add input,.add select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 14px;font-weight:700}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.wide{width:100%}
+.mine{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mine.done .st{text-decoration:line-through;opacity:.5}
+.del{background:none;border:0;color:var(--muted);font-size:22px;padding:4px 8px;line-height:1}
+
+/* Navigation unten */
+nav{position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr)}
+nav button{background:none;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted)}
+nav button svg{width:22px;height:22px}
+nav button.on{color:var(--accent)}
+
+/* Blatt und Hinweis */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s;max-height:85%;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.sheet.on{transform:none}
+.sheet h3{font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 4px}
+.srow{background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;text-align:left;border:0;width:100%}
+.srow small{color:var(--muted);font-size:12px}
+.prog{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent)}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(var(--nav) + 14px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:10px;font-size:14px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.foot{text-align:center;font-size:12px;color:var(--muted)}
+.foot b{color:var(--fox)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 3l4 4 4-4"/></g></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12l5 5 9-10"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand">
+    <h1><span class="dot"></span>Fox <b>Stream</b></h1>
+    <button class="iconbtn" data-act="settings" aria-label="Einstellungen"><svg><use href="#i-gear"/></svg></button>
+  </div>
+  <form class="searchrow" id="searchForm" role="search">
+    <input id="q" type="search" placeholder="Titel suchen, z. B. Tatort" autocomplete="off" aria-label="Titel suchen">
+  </form>
+  <div class="chips" id="searchChips" aria-label="Suchen in"></div>
+</header>
+
+<main>
+  <section class="view on" id="v-home"></section>
+  <section class="view" id="v-week"></section>
+  <section class="view" id="v-chan"></section>
+  <section class="view" id="v-mine"></section>
+</main>
+
+<nav aria-label="Bereiche">
+  <button class="on" data-tab="home"><svg><use href="#i-home"/></svg>Heute</button>
+  <button data-tab="week"><svg><use href="#i-cal"/></svg>Woche</button>
+  <button data-tab="chan"><svg><use href="#i-tv"/></svg>Sender</button>
+  <button data-tab="mine"><svg><use href="#i-star"/></svg>Merkliste</button>
+</nav>
+
+<div class="scrim" id="scrim" data-act="close"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+'use strict';
+var REPO='__REPO__';
+
+/* ================= Daten ================= */
+var P={
+  ard:{n:'ARD Mediathek',u:'https://www.ardmediathek.de/',s:'https://www.ardmediathek.de/suche/'},
+  ardlive:{n:'Das Erste live',u:'https://www.ardmediathek.de/live'},
+  zdf:{n:'ZDF Mediathek',u:'https://www.zdf.de/',s:'https://www.zdf.de/suche?q='},
+  zdflive:{n:'ZDF live',u:'https://www.zdf.de/live-tv'},
+  arte:{n:'ARTE',u:'https://www.arte.tv/de/',s:'https://www.arte.tv/de/search/?q='},
+  pluto:{n:'Pluto TV',u:'https://pluto.tv/de/live-tv'},
+  joyn:{n:'Joyn',u:'https://www.joyn.de/'},
+  zattoo:{n:'Zattoo Free',u:'https://zattoo.com/'},
+  netzkino:{n:'Netzkino',u:'https://www.netzkino.de/'},
+  rakuten:{n:'Rakuten TV',u:'https://www.rakuten.tv/de'},
+  jw:{n:'JustWatch',u:'https://www.justwatch.com/de',s:'https://www.justwatch.com/de/Suche?q='},
+  tvsp:{n:'TV-Programm',u:'https://www.tvspielfilm.de/tv-programm/'}
+};
+var LIVE=[
+  {k:'ardlive',s:'Das Erste & Dritte'},{k:'zdflive',s:'ZDF, ZDFneo, ZDFinfo'},
+  {k:'pluto',s:'Star Trek, Top Gear'},{k:'joyn',s:'ProSieben, SAT.1, DMAX'}
+];
+var CHANNELS=[
+  {g:'Live-TV',i:[
+    {k:'ardlive',s:'Das Erste, Dritte, tagesschau24',t:['werbefrei','ohne Konto']},
+    {k:'zdflive',s:'ZDF, ZDFneo, ZDFinfo',t:['werbefrei','ohne Konto']},
+    {k:'joyn',s:'ProSieben, SAT.1, DMAX, Eurosport 1',t:['Werbung','nur DE']},
+    {k:'pluto',s:'Star Trek, Top Gear, Auto Motor Sport',t:['Werbung','ohne Konto']},
+    {k:'zattoo',s:'rund 170 Sender in SD',t:['Werbung','Konto nötig']}]},
+  {g:'Mediatheken',i:[
+    {k:'ard',s:'Krimis, Serien, Tatort vorab',t:['werbefrei']},
+    {k:'zdf',s:'Thriller, Krimiserien, Dokus',t:['werbefrei']},
+    {k:'arte',s:'Arthouse, Dokus, Originalton',t:['werbefrei']}]},
+  {g:'Gratis-Filme',i:[
+    {k:'netzkino',s:'über 2.500 Genre-Filme',t:['Werbung','ohne Konto']},
+    {k:'rakuten',s:'kostenloser Bereich',t:['Werbung']}]},
+  {g:'Werkzeuge',i:[
+    {k:'jw',s:'Wo läuft ein Titel gratis?',t:['Suche']},
+    {k:'tvsp',s:'Was läuft heute im TV?',t:['Programm']}]}
+];
+var WEEK=[
+  {d:'2026-11-09',l:'Montag',i:[
+    {id:'mo1',t:'20:15',g:'Krimi',n:'Grantchester, Staffel 7',p:'ard',r:'IMDb 7,9',x:'Britischer Dorfkrimi mit Robson Green, neue Folgen.'},
+    {id:'mo2',t:'22:00',g:'Doku',n:'Top Gear',p:'pluto',x:'Autotechnik mit britischem Humor, live auf dem Top-Gear-Kanal.'}]},
+  {d:'2026-11-10',l:'Dienstag',i:[
+    {id:'di1',t:'20:15',g:'Thriller',n:'Die Düsteren, Folgen 1–2',p:'zdf',x:'Sechsteilige Mystery-Thriller-Serie mit Lisa-Marie Koroll.'},
+    {id:'di2',t:'22:00',g:'Sci-Fi',n:'Star Trek – Das nächste Jahrhundert',p:'pluto',x:'Rund um die Uhr auf dem Star-Trek-Kanal.'}]},
+  {d:'2026-11-11',l:'Mittwoch',i:[
+    {id:'mi1',t:'20:15',g:'Action',n:'The Replacement Killers',p:'zdf',r:'IMDb 6,1',x:'Action-Thriller von 1998 mit Chow Yun-Fat, 1:27 Std.'},
+    {id:'mi2',t:'22:00',g:'Doku',n:'Auto Motor Sport Channel',p:'pluto',x:'Autotests und „Bloch erklärt“.'}]},
+  {d:'2026-11-12',l:'Donnerstag',i:[
+    {id:'do1',t:'20:15',g:'Krimi',n:'Murdoch Mysteries',p:'ard',x:'Detektiv im Toronto um 1900.'},
+    {id:'do2',t:'21:15',g:'Sci-Fi',n:'Die Zeitfälscherin',p:'ard',r:'IMDb 7,2',x:'Deutsche Zeitreise-Serie, rund 24 Minuten pro Folge.'}]},
+  {d:'2026-11-13',l:'Freitag',i:[
+    {id:'fr1',t:'20:15',tv:1,g:'Krimi',n:'Jenseits der Spree, Staffel 6',p:'zdf',x:'Mit Jürgen Vogel, live im ZDF oder vorab in der Mediathek.'},
+    {id:'fr2',t:'21:15',g:'Komödie',n:'Jossi',p:'ard',x:'Neue Comedy-Serie, Start am 13. November.'}]},
+  {d:'2026-11-14',l:'Samstag',i:[
+    {id:'sa1',t:'20:15',g:'Komödie',n:'Hubert ohne Staller',p:'ard',r:'IMDb 7,8',x:'Bayerische Krimikomödie, neue Folgen.'},
+    {id:'sa2',t:'21:30',g:'Thriller',n:'Die Düsteren, Folgen 3–6',p:'zdf',x:'Die restlichen Folgen am Stück.'}]},
+  {d:'2026-11-15',l:'Sonntag',i:[
+    {id:'so1',t:'16:00',g:'Krimi',n:"Agatha Christie's Poirot",p:'ard',x:'David Suchet als Hercule Poirot.'},
+    {id:'so2',t:'20:15',tv:1,g:'Krimi',n:'Tatort',p:'ardlive',x:'Der Sonntagskrimi im Ersten.'}]}
+];
+var GENRES=['Alle','Krimi','Thriller','Action','Sci-Fi','Komödie','Doku'];
+
+/* ================= Grundlagen ================= */
+function $(s,r){return (r||document).querySelector(s);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+var seen=load('fs-seen',{});
+var mine=load('fs-mine',[
+  {id:'m1',n:'Mord im Mittsommer',p:'zdf',g:'Krimi',done:false},
+  {id:'m2',n:'Star Trek: Discovery',p:'pluto',g:'Sci-Fi',done:false}]);
+var set=Object.assign({autoUpd:true},load('fs-set',{}));
+var genre='Alle', searchIn='jw';
+
+var tT;function toast(m,ms){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(function(){t.classList.remove('on');},ms||3500);}
+function isNative(){try{return !!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());}catch(e){return false;}}
+function plug(name){if(!isNative())return null;try{return (Capacitor.Plugins&&Capacitor.Plugins[name])||Capacitor.registerPlugin(name);}catch(e){return null;}}
+async function fetchT(url,opt,ms){var c=new AbortController(),t=setTimeout(function(){c.abort();},ms||15000);try{return await fetch(url,Object.assign({signal:c.signal},opt||{}));}finally{clearTimeout(t);}}
+
+/* Links: öffnet die passende App (ARD, ZDF, Pluto TV ...) oder den Browser */
+function openUrl(url){
+  var U=plug('Updater');
+  if(U){U.openUrl({url:url,fallback:''}).catch(function(){toast('Konnte nicht öffnen: '+url,6000);});}
+  else{var a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}
+}
+function todayKey(){var n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function fmtDay(d){return new Date(d+'T12:00:00').toLocaleDateString('de-DE',{day:'numeric',month:'numeric'});}
+
+/* ================= Bausteine ================= */
+function slotHtml(it){
+  var done=!!seen[it.id];
+  return '<div class="slot'+(done?' done':'')+'">'+
+    '<div class="time">'+it.t+(it.tv?'<i>TV</i>':'')+'</div>'+
+    '<div><button class="st" data-act="open" data-url="'+esc(P[it.p].u)+'">'+esc(it.n)+'</button>'+
+    '<div class="meta"><span class="g">'+esc(it.g)+'</span><span>'+esc(P[it.p].n)+'</span>'+(it.r?'<span>'+esc(it.r)+'</span>':'')+'</div>'+
+    '<p class="desc">'+esc(it.x)+'</p></div>'+
+    '<button class="tick'+(done?' on':'')+'" data-act="seen" data-id="'+it.id+'" aria-label="'+esc(it.n)+(done?' als ungesehen markieren':' als gesehen markieren')+'" aria-pressed="'+done+'"><svg><use href="#i-check"/></svg></button></div>';
+}
+function progressHtml(){
+  var tot=0,dn=0;WEEK.forEach(function(d){d.i.forEach(function(it){tot++;if(seen[it.id])dn++;});});
+  return '<div class="progress"><span>'+dn+' von '+tot+' gesehen</span><div class="bar"><i style="width:'+(tot?Math.round(dn/tot*100):0)+'%"></i></div></div>';
+}
+
+/* ================= Ansichten ================= */
+function renderHome(){
+  var tk=todayKey(), day=null, label='Heute';
+  for(var i=0;i<WEEK.length;i++){if(WEEK[i].d===tk){day=WEEK[i];break;}}
+  if(!day){
+    var next=WEEK.filter(function(d){return d.d>tk;})[0];
+    if(next){day=next;label='Als Nächstes · '+next.l;}
+  }
+  var h='<div class="tiles">'+LIVE.map(function(l){
+    return '<button class="tile" data-act="open" data-url="'+esc(P[l.k].u)+'"><span class="live">● LIVE</span><b>'+esc(P[l.k].n)+'</b><span>'+esc(l.s)+'</span></button>';
+  }).join('')+'</div>';
+  h+='<div class="card"><h2>'+esc(label)+(day?' <small>'+fmtDay(day.d)+'</small>':'')+'</h2>';
+  if(day)h+=day.i.map(slotHtml).join('');
+  else h+='<p class="hint">Der Wochenplan ist vorbei. Schau in deine Merkliste oder such einen Titel über JustWatch.</p>';
+  h+='</div>';
+  var open=mine.filter(function(m){return !m.done;});
+  if(open.length){
+    h+='<div class="card"><h2>Aus deiner Merkliste <small>'+open.length+' offen</small></h2>'+open.slice(0,3).map(function(m){
+      return '<div class="row" style="cursor:default"><div><button class="st" data-act="open" data-url="'+esc(P[m.p].u)+'">'+esc(m.n)+'</button><br><span class="s">'+esc(m.g)+' · '+esc(P[m.p].n)+'</span></div></div>';
+    }).join('')+'</div>';
+  }
+  h+='<p class="foot">Fox Stream · Design by <b>Mr.Fox</b></p>';
+  $('#v-home').innerHTML=h;
+}
+function renderWeek(){
+  var tk=todayKey();
+  var h='<div class="chips">'+GENRES.map(function(g){return '<button class="chip'+(g===genre?' on':'')+'" data-act="genre" data-g="'+g+'" aria-pressed="'+(g===genre)+'">'+g+'</button>';}).join('')+'</div>';
+  h+=progressHtml();
+  h+='<div class="card"><h2>9.–15. November <small>Vorschläge</small></h2>';
+  var any=false;
+  WEEK.forEach(function(d){
+    var items=d.i.filter(function(it){return genre==='Alle'||it.g===genre;});
+    if(!items.length)return;any=true;
+    h+='<div class="dayhead'+(d.d===tk?' today':'')+'"><span>'+d.l+(d.d===tk?'<span class="badge">HEUTE</span>':'')+'</span><small>'+fmtDay(d.d)+'</small></div>'+items.map(slotHtml).join('');
+  });
+  if(!any)h+='<p class="hint">Diese Woche nichts aus „'+esc(genre)+'“.</p>';
+  h+='</div><p class="hint">„TV“ heißt fester Sendetermin. Alle anderen Zeiten sind Vorschläge, die Titel sind jederzeit abrufbar. Mediathek-Titel verschwinden nach einiger Zeit wieder.</p>';
+  $('#v-week').innerHTML=h;
+}
+function renderChan(){
+  var h=CHANNELS.map(function(c){
+    return '<div class="card"><h3>'+c.g+'</h3>'+c.i.map(function(it){
+      return '<button class="row" data-act="open" data-url="'+esc(P[it.k].u)+'"><div><b>'+esc(P[it.k].n)+'</b><span class="s">'+esc(it.s)+'</span></div><span class="tags">'+
+        it.t.map(function(t){return '<span class="tag'+(t==='werbefrei'||t==='ohne Konto'?' g':'')+'">'+t+'</span>';}).join('')+'</span></button>';
+    }).join('')+'</div>';
+  }).join('');
+  h+='<p class="hint">Hast du die App eines Senders installiert, öffnet sich der Link direkt dort.</p>';
+  $('#v-chan').innerHTML=h;
+}
+function renderMine(){
+  var opts=['ard','zdf','arte','pluto','joyn','netzkino','rakuten'].map(function(k){return '<option value="'+k+'">'+P[k].n+'</option>';}).join('');
+  var h='<div class="card"><h2>Titel merken</h2><form class="add" id="addForm">'+
+    '<label class="full" for="fT">Titel<input id="fT" required placeholder="z. B. Mord im Mittsommer"></label>'+
+    '<label for="fP">Plattform<select id="fP">'+opts+'</select></label>'+
+    '<label for="fG">Genre<select id="fG">'+GENRES.slice(1).concat(['Sonstiges']).map(function(g){return '<option>'+g+'</option>';}).join('')+'</select></label>'+
+    '<button class="btn pri full" type="submit">Hinzufügen</button></form></div>';
+  h+='<div class="card"><h2>Meine Merkliste <small>'+mine.filter(function(m){return !m.done;}).length+' offen</small></h2>';
+  if(!mine.length)h+='<p class="hint">Noch nichts gemerkt. Füge oben deinen ersten Titel hinzu.</p>';
+  h+=mine.map(function(m){
+    return '<div class="mine'+(m.done?' done':'')+'"><button class="tick'+(m.done?' on':'')+'" data-act="mdone" data-id="'+m.id+'" aria-label="'+esc(m.n)+' gesehen" aria-pressed="'+!!m.done+'"><svg><use href="#i-check"/></svg></button>'+
+      '<div><button class="st" data-act="open" data-url="'+esc(P[m.p].u)+'">'+esc(m.n)+'</button><div class="meta"><span class="g">'+esc(m.g)+'</span><span>'+esc(P[m.p].n)+'</span></div></div>'+
+      '<button class="del" data-act="mdel" data-id="'+m.id+'" aria-label="'+esc(m.n)+' entfernen">×</button></div>';
+  }).join('')+'</div>';
+  $('#v-mine').innerHTML=h;
+  $('#addForm').addEventListener('submit',function(e){
+    e.preventDefault();var n=$('#fT').value.trim();if(!n)return;
+    mine.unshift({id:'m'+Date.now(),n:n,p:$('#fP').value,g:$('#fG').value,done:false});
+    save('fs-mine',mine);renderMine();renderHome();toast('„'+n+'“ gemerkt');
+  });
+}
+function renderSearchChips(){
+  $('#searchChips').innerHTML=['jw','ard','zdf','arte'].map(function(k){
+    return '<button class="chip'+(k===searchIn?' on':'')+'" data-act="sin" data-k="'+k+'" aria-pressed="'+(k===searchIn)+'">'+P[k].n.replace(' Mediathek','')+'</button>';
+  }).join('');
+}
+function renderAll(){renderHome();renderWeek();renderChan();renderMine();renderSearchChips();}
+
+/* ================= Blatt ================= */
+function openSheet(h){$('#sheet').innerHTML=h;$('#sheet').classList.add('on');$('#scrim').classList.add('on');}
+function closeSheet(){$('#sheet').classList.remove('on');$('#scrim').classList.remove('on');}
+
+/* ================= Einstellungen & Update ================= */
+var appVer=null,upd=null,UPL=false;
+async function loadVer(){var U=plug('Updater');if(!U||appVer)return;try{var i=await U.info();appVer={code:Number(i.versionCode),name:String(i.versionName||'')};}catch(e){}}
+async function settingsSheet(){
+  await loadVer();
+  openSheet('<h3>Einstellungen</h3>'+
+    (isNative()?'<button class="srow" data-act="upd"><b>App-Update</b><small>'+(appVer?'Version '+appVer.code+' · ':'')+'Tippen zum Prüfen'+(upd?' · Neu: '+upd.ver:'')+'</small></button>'+
+    '<label class="srow" style="flex-direction:row;justify-content:space-between;align-items:center"><span><b>Updates automatisch suchen</b><br><small>Die Installation bestätigst du selbst</small></span><input type="checkbox" id="autoUpd"'+(set.autoUpd?' checked':'')+'></label>':'')+
+    '<button class="srow" data-act="resetseen"><b>Wochenplan zurücksetzen</b><small>Alle Häkchen entfernen</small></button>'+
+    '<div class="srow"><small>Fox Stream zeigt nur legale Gratis-Angebote. ARD, ZDF und ARTE sind werbefrei, Pluto TV und Joyn zeigen Werbung.</small></div>'+
+    '<p class="foot">Fox Stream · Design by <b>Mr.Fox</b></p>');
+  var au=$('#autoUpd');if(au)au.addEventListener('change',function(e){set.autoUpd=e.target.checked;save('fs-set',set);});
+}
+async function checkUpdate(manual){
+  var U=plug('Updater');if(!U)return;
+  await loadVer();
+  if(REPO.indexOf('__')===0){if(manual)toast('Diese Version kennt ihr GitHub-Repository nicht.');return;}
+  if(manual)toast('Suche nach Updates …');
+  try{
+    var r=await fetchT('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{'Accept':'application/vnd.github+json'}},12000);
+    if(!r.ok)throw new Error('GitHub '+r.status);
+    var j=await r.json(),m=String(j.tag_name||'').match(/(\d+)\s*$/),ver=m?parseInt(m[1],10):0;
+    var asset=(j.assets||[]).filter(function(a){return /\.apk$/i.test(a.name);})[0];
+    if(!asset)throw new Error('keine APK im Release');
+    if(appVer&&ver>appVer.code){
+      upd={ver:ver,url:asset.browser_download_url,size:asset.size,done:false,notes:String(j.body||'').split(/\r?\n/).map(function(l){return l.replace(/^[\s*•-]+/,'').trim();}).filter(function(l){return l&&!/^(co-authored-by|claude-session)/i.test(l)&&!/^https?:/.test(l);})};
+      updateSheet();
+    }else if(manual)toast('Du hast die neueste Version ('+(appVer?appVer.code:'?')+').');
+  }catch(e){if(manual)toast('Update-Prüfung fehlgeschlagen: '+String((e&&e.message)||e).slice(0,100));}
+}
+function updateSheet(){
+  var mb=upd.size?' · '+(upd.size/1048576).toFixed(1).replace('.',',')+' MB':'';
+  openSheet('<h3>Neues Update bereit</h3><div class="srow"><b>Version '+upd.ver+'</b><small>Installiert: '+(appVer?appVer.code:'?')+mb+'</small></div>'+
+    '<div class="srow"><b>Was ist neu</b>'+(upd.notes.length?'<ul style="margin:0;padding-left:20px">'+upd.notes.slice(0,12).map(function(l){return '<li>'+esc(l)+'</li>';}).join('')+'</ul>':'<small>Kleine Verbesserungen und Fehlerbehebungen</small>')+'</div>'+
+    '<button class="btn pri wide" data-act="updgo">Jetzt aktualisieren</button><button class="btn wide" data-act="close">Später</button>');
+}
+async function doUpdate(){
+  var U=plug('Updater');if(!U||!upd)return;
+  if(!UPL){UPL=true;
+    try{U.addListener('progress',function(e){var a=$('#updP'),b=$('#updB'),p=(e&&e.percent)||0;if(a)a.textContent='Lade … '+p+' %';if(b)b.style.width=p+'%';});}catch(x){}
+    try{U.addListener('installResult',function(e){var st=e&&e.status,m=String((e&&e.message)||'');if(st===0)return;if(st===3){toast('Installation abgebrochen.');return;}
+      var t=(st===7||st===5||/INCOMPATIBLE|signature|CONFLICT/i.test(m))?'Die Signatur passt nicht zur installierten App. Deinstalliere Fox Stream einmal und installiere die neueste Version von GitHub von Hand.':st===6?'Auf dem Handy ist zu wenig Speicher frei.':'Android hat die Installation abgelehnt.';
+      openSheet('<h3>Installation fehlgeschlagen</h3><div class="srow"><small>'+esc(t)+'</small><small>Technisch: '+esc(m.slice(0,160)||('Code '+st))+'</small></div><button class="btn wide" data-act="close">OK</button>');});}catch(x){}
+  }
+  try{
+    if(!upd.done){
+      openSheet('<h3>Update wird geladen</h3><div class="srow"><b id="updP">Lade … 0 %</b><div class="prog"><i id="updB" style="width:0"></i></div></div>');
+      await U.download({url:upd.url});upd.done=true;
+    }
+    closeSheet();await U.install();
+  }catch(e){var m=String((e&&e.message)||e);closeSheet();
+    if(/permission/i.test(m))toast('Erlaube Fox Stream in den Einstellungen „Apps installieren“ und tippe danach nochmal auf App-Update.',6000);
+    else toast('Update fehlgeschlagen: '+m.slice(0,200),6000);}
+}
+
+/* ================= Bedienung ================= */
+function showTab(t){
+  document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===t);});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('on',v.id==='v-'+t);});
+  $('main').scrollTop=0;
+}
+document.addEventListener('click',function(e){
+  var nb=e.target.closest('nav button');if(nb){showTab(nb.dataset.tab);return;}
+  var b=e.target.closest('[data-act]');if(!b)return;
+  switch(b.dataset.act){
+    case 'open':openUrl(b.dataset.url);break;
+    case 'seen':{var id=b.dataset.id;if(seen[id])delete seen[id];else seen[id]=true;save('fs-seen',seen);renderHome();renderWeek();break;}
+    case 'genre':genre=b.dataset.g;renderWeek();break;
+    case 'sin':searchIn=b.dataset.k;renderSearchChips();if($('#q').value.trim())doSearch();break;
+    case 'mdone':{mine.forEach(function(m){if(m.id===b.dataset.id)m.done=!m.done;});save('fs-mine',mine);renderMine();renderHome();break;}
+    case 'mdel':{mine=mine.filter(function(m){return m.id!==b.dataset.id;});save('fs-mine',mine);renderMine();renderHome();break;}
+    case 'settings':settingsSheet();break;
+    case 'close':closeSheet();break;
+    case 'upd':closeSheet();checkUpdate(true);break;
+    case 'updgo':doUpdate();break;
+    case 'resetseen':seen={};save('fs-seen',seen);renderHome();renderWeek();closeSheet();toast('Wochenplan zurückgesetzt');break;
+  }
+});
+function doSearch(){
+  var q=$('#q').value.trim();
+  if(!q){toast('Gib zuerst einen Titel ein.');return;}
+  openUrl(P[searchIn].s+encodeURIComponent(q));
+}
+$('#searchForm').addEventListener('submit',function(e){e.preventDefault();$('#q').blur();doSearch();});
+
+renderAll();
+if(isNative()&&set.autoUpd)setTimeout(function(){checkUpdate(false);},2500);
+</script>
+</body>
+</html>

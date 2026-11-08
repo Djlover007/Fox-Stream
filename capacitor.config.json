@@ -1,0 +1,9 @@
+{
+  "appId": "de.foxstream.app",
+  "appName": "Fox Stream",
+  "webDir": "www",
+  "android": { "backgroundColor": "#12161d" },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

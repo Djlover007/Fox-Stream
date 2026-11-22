@@ -23,7 +23,7 @@ const pkg = (fs.readFileSync(generated, 'utf8').match(/^\s*package\s+([\w.]+)\s*
 if (!pkg) fail('Paketname nicht lesbar');
 console.log('Android-Paket: ' + pkg);
 
-for (const f of ['MainActivity.java', 'UpdatePlugin.java']) {
+for (const f of ['MainActivity.java', 'UpdatePlugin.java', 'TvPlugin.java']) {
   const src = fs.readFileSync(f, 'utf8').replace(/^\s*package\s+[\w.]+\s*;/m, 'package ' + pkg + ';');
   fs.writeFileSync(path.join(dir, f), src);
   console.log('kopiert: ' + f);
@@ -87,6 +87,16 @@ if (bn) {
   if (g2 === g) fail('versionCode in build.gradle nicht gefunden');
   g = g2;
   console.log('Version: ' + bn);
+}
+if (!g.includes('media3-exoplayer')) {
+  const g2 = g.replace(/^dependencies\s*\{\s*\n/m,
+    'dependencies {\n' +
+    "    implementation 'androidx.media3:media3-exoplayer:1.4.1'\n" +
+    "    implementation 'androidx.media3:media3-exoplayer-hls:1.4.1'\n" +
+    "    implementation 'androidx.media3:media3-ui:1.4.1'\n");
+  if (g2 === g) fail('dependencies { } in build.gradle nicht gefunden');
+  g = g2;
+  console.log('Live-TV-Player eingetragen');
 }
 fs.writeFileSync(gradle, g);
 

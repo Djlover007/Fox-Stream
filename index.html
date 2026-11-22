@@ -121,6 +121,10 @@ nav button.on{color:var(--accent)}
 .foot{text-align:center;font-size:12px;color:var(--muted)}
 .foot b{color:var(--fox)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+.tvgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.tvb{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:1px;min-height:64px;padding:9px 10px;border:0;border-radius:10px;background:var(--c,#333);color:#fff;text-align:left;cursor:pointer;box-shadow:inset 0 -24px 30px -20px rgba(0,0,0,.45)}
+.tvb b{font-size:13.5px;line-height:1.15}
+.tvb span{font-size:11px;opacity:.85}
 </style>
 </head>
 <body>
@@ -277,7 +281,7 @@ function renderHome(){
     var next=WEEK.filter(function(d){return d.d>tk;})[0];
     if(next){day=next;label='Als Nächstes · '+next.l;}
   }
-  var h='<div class="tiles">'+LIVE.map(function(l){
+  var h=tvHomeHtml()+'<div class="tiles">'+LIVE.map(function(l){
     return '<button class="tile" data-act="open" data-url="'+esc(P[l.k].u)+'"><span class="live">● LIVE</span><b>'+esc(P[l.k].n)+'</b><span>'+esc(l.s)+'</span></button>';
   }).join('')+'</div>';
   h+='<div class="card"><h2>'+esc(label)+(day?' <small>'+fmtDay(day.d)+'</small>':'')+'</h2>';
@@ -309,7 +313,7 @@ function renderWeek(){
   $('#v-week').innerHTML=h;
 }
 function renderChan(){
-  var h=CHANNELS.map(function(c){
+  var h=tvChanHtml()+CHANNELS.map(function(c){
     return '<div class="card"><h3>'+c.g+'</h3>'+c.i.map(function(it){
       return '<button class="row" data-act="open" data-url="'+esc(P[it.k].u)+'"><div><b>'+esc(P[it.k].n)+'</b><span class="s">'+esc(it.s)+'</span></div><span class="tags">'+
         it.t.map(function(t){return '<span class="tag'+(t==='werbefrei'||t==='ohne Konto'?' g':'')+'">'+t+'</span>';}).join('')+'</span></button>';
@@ -405,6 +409,56 @@ async function doUpdate(){
     else toast('Update fehlgeschlagen: '+m.slice(0,200),6000);}
 }
 
+/* ================= Live-TV in der App ================= */
+// Senderliste der freien App „Zapp“ (MediathekView): offizielle Livestreams der öffentlich-rechtlichen Sender
+var ZAPP='https://raw.githubusercontent.com/mediathekview/zapp/main/app/src/main/res/raw/channels.json';
+var tvData=load('fs-tv',null),tvErr='',tvLoading=false;
+var TVTOP=['das_erste','zdf','arte','dreisat','zdf_neo','phoenix'];
+function tvChannels(){return (tvData&&tvData.ch)||[];}
+async function loadTv(force){
+  if(tvLoading)return;
+  if(tvData&&tvData.ch&&tvData.ch.length&&!force&&Date.now()-tvData.t<24*3600e3)return;
+  tvLoading=true;tvErr='';
+  try{
+    var r=await fetch(ZAPP,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
+    var j=await r.json();
+    var ch=(Array.isArray(j)?j:[]).filter(function(c){return c&&c.stream_url;}).map(function(c){
+      return {id:c.id,name:String(c.name||c.id).replace(/^NRD /,'NDR '),sub:c.subtitle||'',color:c.color||'#333',url:String(c.stream_url).replace(/^http:/,'https:')};
+    });
+    if(!ch.length)throw new Error('Liste leer');
+    tvData={t:Date.now(),ch:ch};save('fs-tv',tvData);
+  }catch(e){tvErr='Senderliste konnte nicht geladen werden ('+String(e.message||e).slice(0,60)+'). Prüfe deine Internetverbindung.';}
+  tvLoading=false;
+  renderHome();renderChan();
+}
+function tvBtn(c,i){
+  return '<button class="tvb" data-act="tv" data-i="'+i+'" style="--c:'+esc(c.color)+'"><b>'+esc(c.name.replace(/ (Fernsehen|Baden-Württemberg|Rheinland-Pfalz)/,function(m){return m===' Fernsehen'?'':m;}))+'</b>'+(c.sub&&c.name.indexOf(c.sub)<0?'<span>'+esc(c.sub)+'</span>':'')+'</button>';
+}
+function tvHomeHtml(){
+  var ch=tvChannels();
+  if(!ch.length)return tvErr?'<div class="card"><h2>Live-TV</h2><p class="hint">'+esc(tvErr)+'</p></div>':'';
+  var last=load('fs-tvlast',''),pick=[];
+  ch.forEach(function(c,i){if(c.id===last)pick.push(i);});
+  TVTOP.forEach(function(id){ch.forEach(function(c,i){if(c.id===id&&pick.indexOf(i)<0)pick.push(i);});});
+  pick=pick.slice(0,6);
+  return '<div class="card"><h2>Live-TV <small>in der App, werbefrei</small></h2><div class="tvgrid">'+pick.map(function(i){return tvBtn(ch[i],i);}).join('')+'</div>'+
+    '<button class="row" data-act="tab" data-t="chan" style="justify-content:center"><b>Alle '+ch.length+' Sender</b></button></div>';
+}
+function tvChanHtml(){
+  var ch=tvChannels();
+  var h='<div class="card"><h3>Live-TV in der App</h3>';
+  if(!ch.length)h+=tvLoading?'<p class="hint">Lade Senderliste …</p>':'<p class="hint">'+esc(tvErr||'Noch keine Senderliste.')+'</p><button class="row" data-act="tvreload" style="justify-content:center"><b>Nochmal laden</b></button>';
+  else h+='<div class="tvgrid">'+ch.map(tvBtn).join('')+'</div><p class="hint" style="margin-top:8px">Antippen und los. Im Player nach oben wischen = nächster Sender. Die Liste kommt aus der freien App „Zapp“ und ist immer aktuell.</p>';
+  return h+'</div>';
+}
+async function playTv(i){
+  var T=plug('Tv'),ch=tvChannels();
+  if(!T){openUrl(P.ardlive.u);return;}
+  try{
+    var r=await T.play({items:ch.map(function(c){return {name:c.name,url:c.url};}),start:i});
+  }catch(e){toast('Live-TV geht nicht: '+String(e.message||e).slice(0,100));}
+}
+
 /* ================= Bedienung ================= */
 function showTab(t){
   document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===t);});
@@ -416,6 +470,9 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]');if(!b)return;
   switch(b.dataset.act){
     case 'open':openUrl(b.dataset.url);break;
+    case 'tv':playTv(+b.dataset.i);break;
+    case 'tvreload':loadTv(true);break;
+    case 'tab':showTab(b.dataset.t);break;
     case 'seen':{var id=b.dataset.id;if(seen[id])delete seen[id];else seen[id]=true;save('fs-seen',seen);renderHome();renderWeek();break;}
     case 'genre':genre=b.dataset.g;renderWeek();break;
     case 'sin':searchIn=b.dataset.k;renderSearchChips();if($('#q').value.trim())doSearch();break;
@@ -436,6 +493,8 @@ function doSearch(){
 $('#searchForm').addEventListener('submit',function(e){e.preventDefault();$('#q').blur();doSearch();});
 
 renderAll();
+loadTv(false);
+(function(){var T=plug('Tv');if(T){try{T.addListener('tuned',function(e){var c=tvChannels()[e.index];if(c)save('fs-tvlast',c.id);});}catch(x){}}})();
 if(isNative()&&set.autoUpd)setTimeout(function(){checkUpdate(false);},2500);
 </script>
 </body>
